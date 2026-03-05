@@ -2,24 +2,24 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # CHANGE THIS: pick a substring that reliably identifies your dummy adapter's monitor InstanceId
-$TargetInstanceIdContains = "DISPLAY\DEFAULT_MONITOR\1&C528B8A&3&UID256"
+$script:TargetInstanceIdContains = "DISPLAY\IDVED11"
 
 # Optional: if you have multiple monitors and only want a specific adapter,
 # make this more specific once you know the adapter's InstanceId substring.
-#$TargetInstanceIdContains = "DISPLAY\GSM"  # example
+#$script:TargetInstanceIdContains = "DISPLAY\GSM"  # example
 
 function Test-DummyPresent {
     try {
         # Prefer Get-PnpDevice when available (newer Windows/PowerShell)
         if (Get-Command -Name Get-PnpDevice -ErrorAction SilentlyContinue) {
-            $monitors = Get-PnpDevice -Class Monitor -ErrorAction Stop |
-                Where-Object { $_.Status -eq "OK" -and $_.InstanceId -like "*$TargetInstanceIdContains*" }
+            $monitors = @(Get-PnpDevice -Class Monitor -ErrorAction Stop |
+                Where-Object { $_.Status -eq "OK" -and $_.InstanceId -like "*$script:TargetInstanceIdContains*" })
             return ($monitors.Count -ge 1)
         } else {
             # Fallback: use CIM to query PnP entities and match PNPDeviceID
             # This helps on systems where the PnPDevice cmdlets are not present.
-            $devices = Get-CimInstance -ClassName Win32_PnPEntity -ErrorAction Stop |
-                Where-Object { $_.PNPDeviceID -like "*$TargetInstanceIdContains*" }
+            $devices = @(Get-CimInstance -ClassName Win32_PnPEntity -ErrorAction Stop |
+                Where-Object { $_.PNPDeviceID -like "*$script:TargetInstanceIdContains*" })
             return ($devices.Count -ge 1)
         }
     } catch {
@@ -52,14 +52,14 @@ $exitItem.add_Click({
 })
 $notify.ContextMenuStrip = $menu
 
-$state = $null
+$script:state = $null
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 2000  # check every 2 seconds
 $timer.Add_Tick({
     $present = Test-DummyPresent
 
-    if ($state -ne $present) {
-        $state = $present
+    if ($script:state -ne $present) {
+        $script:state = $present
         if ($present) {
             $notify.Icon = (New-Icon ([System.Drawing.Color]::LimeGreen))
             $notify.BalloonTipTitle = "HDMI Dummy: Present"
@@ -76,7 +76,7 @@ $timer.Add_Tick({
 $timer.Start()
 
 # Start with correct icon immediately
-$state = Test-DummyPresent
-$notify.Icon = (New-Icon ($(if ($state) {[System.Drawing.Color]::LimeGreen} else {[System.Drawing.Color]::Red})))
+$script:state = Test-DummyPresent
+$notify.Icon = (New-Icon ($(if ($script:state) {[System.Drawing.Color]::LimeGreen} else {[System.Drawing.Color]::Red})))
 
 [System.Windows.Forms.Application]::Run()
