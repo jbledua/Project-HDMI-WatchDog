@@ -1,0 +1,5 @@
+FriendlyName,InstanceId,Status
+HDMI Dummy Port 1,REPLACE_WITH_YOUR_DEVICE_ID,Required
+HDMI Dummy Port 2,REPLACE_WITH_YOUR_DEVICE_ID,Required
+Office Monitor,REPLACE_WITH_YOUR_DEVICE_ID,Optional
+Personal Laptop Display,REPLACE_WITH_YOUR_DEVICE_ID,Blocked

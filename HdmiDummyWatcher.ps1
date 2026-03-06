@@ -170,14 +170,82 @@ $notify = New-Object System.Windows.Forms.NotifyIcon
 $notify.Visible = $true
 $notify.Text = "HDMI Dummy Watcher"
 
-$menu = New-Object System.Windows.Forms.ContextMenuStrip
-$exitItem = $menu.Items.Add("Exit")
-$exitItem.add_Click({
+$script:menu = New-Object System.Windows.Forms.ContextMenuStrip
+
+# Header item (disabled, just for display)
+$script:headerItem = $script:menu.Items.Add("Connected Monitors:")
+$script:headerItem.Enabled = $false
+$script:headerItem.Font = New-Object System.Drawing.Font($script:headerItem.Font, [System.Drawing.FontStyle]::Bold)
+
+# Separator after header
+$script:menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+# Placeholder for monitor list - will be updated dynamically
+$script:monitorMenuStartIndex = $script:menu.Items.Count
+
+# Add separator before Exit
+$script:exitSeparator = New-Object System.Windows.Forms.ToolStripSeparator
+
+# Exit item
+$script:exitItem = New-Object System.Windows.Forms.ToolStripMenuItem("Exit")
+$script:exitItem.add_Click({
     $notify.Visible = $false
     $notify.Dispose()
     [System.Windows.Forms.Application]::Exit()
 })
-$notify.ContextMenuStrip = $menu
+
+$notify.ContextMenuStrip = $script:menu
+
+# Function to update the context menu with connected monitors
+function Update-ContextMenu {
+    # Remove old monitor items (between header separator and exit separator)
+    while ($script:menu.Items.Count -gt $script:monitorMenuStartIndex) {
+        $script:menu.Items.RemoveAt($script:monitorMenuStartIndex)
+    }
+    
+    $config = Get-MonitorConfig
+    $hasConnected = $false
+    
+    # Add Required monitors that are connected
+    foreach ($entry in $config) {
+        if ($entry.Status -eq "Required") {
+            $present = Test-MonitorPresent -InstanceIdPattern $entry.InstanceId
+            if ($present) {
+                $item = $script:menu.Items.Add("[Required] $($entry.FriendlyName)")
+                $item.Enabled = $false
+                $item.ForeColor = [System.Drawing.Color]::Green
+                $hasConnected = $true
+            }
+        }
+    }
+    
+    # Add Optional monitors that are connected
+    foreach ($entry in $config) {
+        if ($entry.Status -eq "Optional") {
+            $present = Test-MonitorPresent -InstanceIdPattern $entry.InstanceId
+            if ($present) {
+                $item = $script:menu.Items.Add("[Optional] $($entry.FriendlyName)")
+                $item.Enabled = $false
+                $item.ForeColor = [System.Drawing.Color]::DarkOrange
+                $hasConnected = $true
+            }
+        }
+    }
+    
+    # If no monitors connected, show a message
+    if (-not $hasConnected) {
+        $item = $script:menu.Items.Add("(No configured monitors connected)")
+        $item.Enabled = $false
+        $item.ForeColor = [System.Drawing.Color]::Gray
+    }
+    
+    # Add separator and Exit at the end
+    $script:menu.Items.Add($script:exitSeparator)
+    $script:menu.Items.Add($script:exitItem)
+}
+
+# Update menu when it opens
+$script:menu.add_Opening({ Update-ContextMenu })
 
 $script:lastColor = $null
 $timer = New-Object System.Windows.Forms.Timer
